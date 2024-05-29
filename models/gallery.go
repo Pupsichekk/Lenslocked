@@ -61,7 +61,7 @@ func (service *GalleryService) ByUserID(userID int) ([]Gallery, error) {
 	// TODO: Will need to tweak this so some galleries will be passed instead of 0
 	// in case of error
 	rows, err := service.DB.Query(`
-	select title, id
+	select id, title
 	from galleries
 	where user_id = $1;`, userID)
 	if err != nil {

@@ -2,7 +2,7 @@
 -- +goose StatementBegin
 create table galleries (
   id serial primary key,
-  user_id int references users (id),
+  user_id int references users (id) on delete cascade,
   title text
 );
 -- +goose StatementEnd

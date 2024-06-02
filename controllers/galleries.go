@@ -182,6 +182,12 @@ func (g Galleries) UploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fileHeaders := r.MultipartForm.File["images"]
+
+	if len(fileHeaders) == 0 {
+		editPath := fmt.Sprintf("/galleries/%d/edit", gallery.ID)
+		http.Redirect(w, r, editPath, http.StatusFound)
+	}
+
 	for _, fileHeader := range fileHeaders {
 		file, err := fileHeader.Open()
 		if err != nil {
@@ -192,6 +198,12 @@ func (g Galleries) UploadImage(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		err = g.GalleryService.CreateImage(gallery.ID, fileHeader.Filename, file)
 		if err != nil {
+			var fileError models.FileError
+			if errors.As(err, &fileError) {
+				msg := fmt.Sprintf("%v has an invalid content type or extension. Only png, gif and jpg files can be uploaded", fileHeader.Filename)
+				http.Error(w, msg, http.StatusBadRequest)
+				return
+			}
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}

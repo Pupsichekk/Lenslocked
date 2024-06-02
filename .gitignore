@@ -1,0 +1,10 @@
+# Binaries, experimental cmd folder, docker config (R.I.P DOCKER)
+.env
+*.exe
+*.exe~
+*.dll
+docker-compose.yaml
+cmd
+
+# Images directory during development
+images/

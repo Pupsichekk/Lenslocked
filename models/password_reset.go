@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -41,6 +42,9 @@ func (service *PasswordResetService) Create(email string) (*PasswordReset, error
 	row := service.DB.QueryRow(`SELECT id FROM users WHERE email = $1`, email)
 	err := row.Scan(&userID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("find user reset service: %w", err)
 	}
 
@@ -111,7 +115,7 @@ func (service *PasswordResetService) Consume(tokenHash string) (*User, error) {
 	err := row.Scan(&pwReset.ID, &pwReset.ExpiresAt, &user.ID,
 		&user.Email, &user.PasswordHash)
 	if err != nil {
-		return nil, fmt.Errorf("consume: %w", err)
+		return nil, ErrNotFound
 	}
 	if time.Now().After(pwReset.ExpiresAt) {
 		return nil, fmt.Errorf("token expired: %v", tokenHash)

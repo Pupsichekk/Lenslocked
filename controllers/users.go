@@ -52,8 +52,6 @@ func (u Users) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	session, err := u.SessionService.Create(user.ID)
 	if err != nil {
-		fmt.Println(err)
-		// TODO: long term we should show warning about not being able to sign in
 		http.Redirect(w, r, "/signin", http.StatusFound)
 		return
 	}
@@ -121,9 +119,10 @@ func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
 	data.Email = r.FormValue("email")
 	pwReset, err := u.PasswordResetService.Create(data.Email)
 	if err != nil {
-		// TODO: Handle other cases in the future. For instance, if user does not exist
-		// with that email address.
-		fmt.Println(err)
+		if errors.Is(err, models.ErrNotFound) {
+			http.Error(w, "Invalid data provided", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -136,12 +135,10 @@ func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	// Don't render the user token here! We need the user to confirm they have
-	// access to the email account to verify their identity.
+
 	u.Templates.CheckYourEmail.Execute(w, r, data)
 }
 
-// TODO: Don't forget to add custom errors here
 func (u Users) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		Token string
@@ -167,20 +164,21 @@ func (u Users) ProcessResetPassword(w http.ResponseWriter, r *http.Request) {
 	user, err := u.PasswordResetService.Consume(data.Token)
 	if err != nil {
 		fmt.Println(err)
-		// TODO: Distinguish between types of errors.
+		if errors.Is(err, models.ErrNotFound) {
+			http.Error(w, "Invalid information provided", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	// TODO: Update User Password
 	err = u.UserService.UpdatePassword(user.ID, data.Password)
 	if err != nil {
 		fmt.Println(err)
 		// TODO: Distinguish between types of errors.
+		// Honestly don't know what type of error might be here
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	// Sign the user in now that their password is reset.
-	// Any errors from this point should redirect user ro sign in page.
 	session, err := u.SessionService.Create(user.ID)
 	if err != nil {
 		fmt.Println(err)

@@ -2,12 +2,13 @@ package models
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/go-mail/mail/v2"
 )
 
-const (
-	DefaultSender = "www.sopin-l@mail.ru"
+var (
+	DefaultSender = os.Getenv("SMTP_DEFAULT_SENDER")
 )
 
 type Email struct {
@@ -37,7 +38,6 @@ type EmailService struct {
 
 func NewEmailService(config SMTPConfig) *EmailService {
 	es := EmailService{
-		// TODO: Setup the fields, specifically the dialer
 		dialer: mail.NewDialer(config.Host, config.Port, config.Username, config.Password),
 	}
 	return &es
@@ -46,7 +46,9 @@ func NewEmailService(config SMTPConfig) *EmailService {
 func (es *EmailService) Send(email Email) error {
 	msg := mail.NewMessage()
 	msg.SetHeader("To", email.To)
-	// TODO: Set the From field to a default if it is not set
+	if len(email.From) == 0 {
+		email.From = DefaultSender
+	}
 	es.setFrom(msg, email)
 	msg.SetHeader("Subject", email.Subject)
 	switch {
@@ -67,7 +69,7 @@ func (es *EmailService) Send(email Email) error {
 
 func (es *EmailService) ForgotPassword(to, resetURL string) error {
 	email := Email{
-		From:      "www.sopin-l@mail.ru",
+		From:      DefaultSender,
 		Subject:   "Reset your password",
 		To:        to,
 		Plaintext: "To reset your password, please visit the following link:" + resetURL,

@@ -133,14 +133,6 @@ func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
 	// But it's ugly :(
 	resetURL := "https://localhost:443/reset-pw?" + vals.Encode()
 	if err = u.EmailService.ForgotPassword(data.Email, resetURL); err != nil {
-		if errors.Is(err, models.ErrNotFound) {
-			http.Error(w, "Invalid cridentials", http.StatusBadRequest)
-			return
-		}
-		if errors.Is(err, models.ErrLinkExpired) {
-			http.Error(w, "Your link has expired", http.StatusGone)
-			return
-		}
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -155,8 +147,15 @@ func (u Users) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	data.Token = r.FormValue("token")
 	err := u.PasswordResetService.CheckTokenExpired(data.Token)
 	if err != nil {
-		fmt.Println(err)
-		http.Error(w, "Link expired", http.StatusBadRequest)
+		if errors.Is(err, models.ErrNotFound) {
+			http.Error(w, "Invalid cridentials", http.StatusBadRequest)
+			return
+		}
+		if errors.Is(err, models.ErrLinkExpired) {
+			http.Error(w, "Link expired", http.StatusGone)
+			return
+		}
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 	u.Templates.ResetPassword.Execute(w, r, data)

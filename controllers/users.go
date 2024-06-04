@@ -129,9 +129,18 @@ func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
 	vals := url.Values{
 		"token": {pwReset.TokenHash},
 	}
-	resetURL := "http://localhost:3000/reset-pw?" + vals.Encode()
+	// Go has no way of knowing it's environment so for now this will do i guess????
+	// But it's ugly :(
+	resetURL := "https://localhost:443/reset-pw?" + vals.Encode()
 	if err = u.EmailService.ForgotPassword(data.Email, resetURL); err != nil {
-		fmt.Println(err)
+		if errors.Is(err, models.ErrNotFound) {
+			http.Error(w, "Invalid cridentials", http.StatusBadRequest)
+			return
+		}
+		if errors.Is(err, models.ErrLinkExpired) {
+			http.Error(w, "Your link has expired", http.StatusGone)
+			return
+		}
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}

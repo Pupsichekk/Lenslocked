@@ -81,18 +81,20 @@ func (service *PasswordResetService) Create(email string) (*PasswordReset, error
 }
 
 func (service *PasswordResetService) CheckTokenExpired(tokenHash string) error {
-	var count int
 	var expiresAt time.Time
 	err := service.DB.QueryRow(`
-	SELECT COUNT(*), password_resets.expires_at
+	SELECT password_resets.expires_at
 	FROM password_resets
-		JOIN users on users.id = password_resets.user_id
-	WHERE password_resets.token_hash = $1`, tokenHash).Scan(&count, &expiresAt)
+	JOIN users on users.id = password_resets.user_id
+	WHERE password_resets.token_hash = $1`, tokenHash).Scan(&expiresAt)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
 		return fmt.Errorf("error checking token existence: %w", err)
 	}
-	if count == 0 && time.Now().After(expiresAt) {
-		return fmt.Errorf("link is invalid or has expired: %w", err)
+	if time.Now().After(expiresAt) {
+		return ErrLinkExpired
 	}
 	return nil
 }
@@ -115,7 +117,10 @@ func (service *PasswordResetService) Consume(tokenHash string) (*User, error) {
 	err := row.Scan(&pwReset.ID, &pwReset.ExpiresAt, &user.ID,
 		&user.Email, &user.PasswordHash)
 	if err != nil {
-		return nil, ErrNotFound
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("consume token: %w", err)
 	}
 	if time.Now().After(pwReset.ExpiresAt) {
 		return nil, fmt.Errorf("token expired: %v", tokenHash)

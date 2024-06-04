@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	DefaultSender = os.Getenv("SMTP_DEFAULT_SENDER")
+	DefaultSender string
 )
 
 type Email struct {
@@ -46,9 +46,6 @@ func NewEmailService(config SMTPConfig) *EmailService {
 func (es *EmailService) Send(email Email) error {
 	msg := mail.NewMessage()
 	msg.SetHeader("To", email.To)
-	if len(email.From) == 0 {
-		email.From = DefaultSender
-	}
 	es.setFrom(msg, email)
 	msg.SetHeader("Subject", email.Subject)
 	switch {
@@ -84,6 +81,7 @@ func (es *EmailService) ForgotPassword(to, resetURL string) error {
 }
 
 func (es *EmailService) setFrom(msg *mail.Message, email Email) {
+	DefaultSender = os.Getenv("SMTP_DEFAULT_SENDER")
 	var from string
 	switch {
 	case email.From != "":

@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/csrf"
 	"github.com/joho/godotenv"
+	"golang.org/x/net/http2"
 )
 
 type config struct {
@@ -25,6 +26,10 @@ type config struct {
 	}
 	Server struct {
 		Address string
+	}
+	SSL struct {
+		cert string
+		key  string
 	}
 }
 
@@ -56,11 +61,14 @@ func loadEnvConfig() (config, error) {
 	cfg.SMTP.Port = port
 	cfg.SMTP.Username = os.Getenv("SMTP_USERNAME")
 	cfg.SMTP.Password = os.Getenv("SMTP_PASSWORD")
-	// TODO: CSRF
+
 	cfg.CSRF.Key = os.Getenv("CSRF_KEY")
 	cfg.CSRF.Secure = os.Getenv("CSRF_SECURE") == "true"
-	// TODO: Read The Server Files from an .env var
+
 	cfg.Server.Address = os.Getenv("SERVER_ADDRESS")
+
+	cfg.SSL.cert = os.Getenv("SSL_CERT")
+	cfg.SSL.key = os.Getenv("SSL_KEY")
 	return cfg, nil
 }
 
@@ -178,7 +186,15 @@ func main() {
 
 	// Start the server
 	fmt.Printf("Starting the server on %s...\n", cfg.Server.Address)
-	err = http.ListenAndServe(cfg.Server.Address, r)
+	srv := &http.Server{
+		Addr:    cfg.Server.Address,
+		Handler: r,
+	}
+	err = http2.ConfigureServer(srv, &http2.Server{})
+	if err != nil {
+		panic(err)
+	}
+	err = srv.ListenAndServeTLS(cfg.SSL.cert, cfg.SSL.key)
 	if err != nil {
 		panic(err)
 	}

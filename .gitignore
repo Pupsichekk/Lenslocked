@@ -8,3 +8,7 @@ docker-compose.yaml
 
 # Images directory during development
 images/
+
+# Key/certificate for https
+cert.pem
+key.pem
